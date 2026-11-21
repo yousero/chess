@@ -3,715 +3,418 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Chess Painkiller — обезболивающее для шахматиста</title>
+<title>Шахматы · доска с движком</title>
+<script src="https://cdn.jsdelivr.net/npm/chess.js@0.10.3/chess.min.js"></script>
 <style>
   :root{
-    --bg:#0b0d12; --panel:#12151d; --panel-2:#171b25; --line:#232837;
+    --bg:#0b0d12; --panel:#12151d; --line:#232837;
     --text:#e6e9f2; --muted:#8b93a7;
-    --acc:#7c5cff; --acc2:#22d3ee; --ok:#34d399; --bad:#fb7185;
+    --acc:#7c5cff; --ok:#34d399; --bad:#fb7185;
+    --light:#e6d7bd; --dark:#a57b57;
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
   body{
-    background:
-      radial-gradient(1200px 600px at 15% -10%, #1b1630 0%, transparent 60%),
-      radial-gradient(900px 500px at 105% 0%, #0e2a33 0%, transparent 55%),
-      var(--bg);
-    color:var(--text);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Arial,sans-serif;
+    background:radial-gradient(1200px 600px at 15% -10%,#1b1630 0,transparent 60%),
+               radial-gradient(900px 500px at 105% 0,#0e2a33 0,transparent 55%),
+               var(--bg);
+    color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Arial,sans-serif;
     min-height:100vh;-webkit-font-smoothing:antialiased;
   }
-  .wrap{max-width:1080px;margin:0 auto;padding:22px 18px 60px}
+  .wrap{max-width:640px;margin:0 auto;padding:22px 16px 50px}
+  h1{font-size:18px;margin:0 0 14px;letter-spacing:.2px;font-weight:700}
+  h1 span{color:var(--muted);font-weight:400;font-size:13px;margin-left:8px}
 
-  /* ---------- header ---------- */
-  header{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;margin-bottom:22px}
-  .brand{display:flex;align-items:center;gap:14px}
-  .pill{
-    width:52px;height:26px;border-radius:999px;flex:none;
-    background:linear-gradient(90deg,var(--acc) 0 50%,#f4f4f8 50% 100%);
-    transform:rotate(-32deg);
-    box-shadow:0 10px 28px rgba(124,92,255,.4), inset 0 0 0 1px rgba(255,255,255,.15);
-  }
-  h1{font-size:20px;margin:0;letter-spacing:.2px}
-  .tag{margin:2px 0 0;font-size:12.5px;color:var(--muted)}
-  .stats{display:flex;gap:10px}
-  .stat{
-    background:var(--panel);border:1px solid var(--line);border-radius:14px;
-    padding:8px 14px;text-align:center;min-width:86px
-  }
-  .stat b{display:block;font-size:19px;line-height:1.1}
-  .stat span{font-size:11px;color:var(--muted)}
-
-  /* ---------- tabs ---------- */
-  .tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:18px}
-  .tab{
-    white-space:nowrap;background:transparent;border:1px solid var(--line);color:var(--muted);
-    padding:9px 16px;border-radius:999px;font-size:14px
-  }
-  .tab.active{background:var(--panel-2);color:var(--text);border-color:#3a4256}
-
-  /* ---------- generic ---------- */
-  button{
-    font:inherit;cursor:pointer;border-radius:11px;border:1px solid var(--line);
-    background:var(--panel-2);color:var(--text);padding:10px 15px;transition:.16s
-  }
-  button:hover{border-color:#3a4256;background:#1d2230}
-  button.primary{
-    background:linear-gradient(135deg,var(--acc),#5b8cff);border:none;color:#fff;font-weight:600;
-    box-shadow:0 10px 26px rgba(124,92,255,.32)
-  }
-  button.primary:hover{filter:brightness(1.09)}
-  button.small{padding:7px 13px;font-size:13.5px;border-radius:9px}
-  .muted{color:var(--muted)}
-  .small{font-size:13px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
-
-  .view{display:none}
-  .view.active{display:block;animation:fade .25s ease}
-  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-
-  /* ---------- trainer ---------- */
-  .trainer{display:grid;grid-template-columns:minmax(0,1fr) minmax(290px,360px);gap:22px;align-items:start}
-  @media(max-width:880px){.trainer{grid-template-columns:1fr}}
-  .board-wrap{max-width:520px}
   .board{
     display:grid;grid-template-columns:repeat(8,1fr);aspect-ratio:1/1;
     border-radius:14px;overflow:hidden;border:1px solid var(--line);
-    box-shadow:0 26px 60px rgba(0,0,0,.55)
+    box-shadow:0 24px 60px rgba(0,0,0,.55);
+    user-select:none;-webkit-tap-highlight-color:transparent;
   }
-  .board.shake{animation:shake .45s}
-  @keyframes shake{
-    10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(3px)}
-    30%,50%,70%{transform:translateX(-5px)}40%,60%{transform:translateX(5px)}
+  .sq{position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .sq.light{background:var(--light)}
+  .sq.dark{background:var(--dark)}
+  .sq.last{box-shadow:inset 0 0 0 4px rgba(255,235,59,.35)}
+  .sq.sel{box-shadow:inset 0 0 0 4px var(--acc)}
+  .sq.check{box-shadow:inset 0 0 0 4px var(--bad)}
+  .sq .target{
+    position:absolute;width:26%;height:26%;border-radius:50%;
+    background:rgba(20,20,30,.35);pointer-events:none;
   }
-  .sq{position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none}
-  .sq.light{background:#e6d7bd}
-  .sq.dark{background:#a57b57}
-  .sq.sel{box-shadow:inset 0 0 0 4px var(--acc2)}
-  .sq.done{box-shadow:inset 0 0 0 4px var(--ok)}
-  .sq.hint::after{
-    content:'';position:absolute;inset:9%;border-radius:50%;
-    border:3px dashed var(--acc);animation:pulse 1.1s infinite
+  .sq.target-cap .target{
+    width:78%;height:78%;background:transparent;
+    border:5px solid rgba(20,20,30,.32);border-radius:50%;
   }
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
-  .piece{font-size:min(9vw,46px);line-height:1;pointer-events:none;text-align:center}
-  .piece.w{
-    color:#fdfdfd;
-    text-shadow:0 1px 0 #4a3a2a,0 -1px 0 #4a3a2a,1px 0 0 #4a3a2a,-1px 0 0 #4a3a2a,0 3px 5px rgba(0,0,0,.45)
+  .piece{
+    font-size:min(9.5vw,50px);line-height:1;pointer-events:none;text-align:center;
+    position:relative;z-index:2;
   }
+  .piece.w{color:#fdfdfd;text-shadow:0 1px 0 #4a3a2a,0 -1px 0 #4a3a2a,1px 0 0 #4a3a2a,-1px 0 0 #4a3a2a,0 3px 5px rgba(0,0,0,.45)}
   .piece.b{color:#20232b;text-shadow:0 1px 0 rgba(255,255,255,.3)}
-  .coord{position:absolute;font-size:10px;font-weight:700;font-style:normal;opacity:.6;pointer-events:none}
+  .coord{position:absolute;font-size:10px;font-weight:700;font-style:normal;opacity:.65;pointer-events:none}
   .coord.file{right:4px;bottom:1px}
   .coord.rank{left:4px;top:1px}
   .sq.light .coord{color:#6b5236}
   .sq.dark .coord{color:#f6ead9}
 
-  .board-actions{display:flex;gap:10px;margin-top:12px}
+  .status{
+    margin-top:14px;padding:12px 16px;border-radius:12px;
+    background:var(--panel);border:1px solid var(--line);
+    font-size:14.5px;min-height:20px;
+  }
+  .status.check{border-color:rgba(251,113,133,.45);background:rgba(251,113,133,.09)}
+  .status.thinking{border-color:rgba(124,92,255,.45);background:rgba(124,92,255,.09)}
+  .status.over{border-color:rgba(52,211,153,.45);background:rgba(52,211,153,.09);font-weight:600}
 
-  .panel-side{display:flex;flex-direction:column;gap:14px}
-  .meta{display:flex;gap:8px;flex-wrap:wrap}
-  .chip{
-    font-size:11.5px;letter-spacing:.4px;text-transform:uppercase;font-weight:700;
-    background:rgba(124,92,255,.16);color:#b9a6ff;border:1px solid rgba(124,92,255,.3);
-    padding:4px 10px;border-radius:999px
+  .controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  button,select{
+    font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);
+    background:var(--panel);color:var(--text);padding:9px 14px;transition:.16s;
   }
-  .chip.ghost{background:transparent;color:var(--muted);border-color:var(--line)}
-  .panel-side h2{font-size:18px;margin:2px 0 0}
-  .feedback{
-    border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.55;
-    border:1px solid var(--line);background:var(--panel-2);min-height:20px
-  }
-  .feedback.ok{border-color:rgba(52,211,153,.45);background:rgba(52,211,153,.09)}
-  .feedback.bad{border-color:rgba(251,113,133,.45);background:rgba(251,113,133,.09)}
-  .feedback.info{border-color:rgba(34,211,238,.42);background:rgba(34,211,238,.08)}
-
-  .dose{margin-top:2px}
-  .dose-top{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-bottom:6px}
-  .dose-track{height:8px;border-radius:999px;background:#1b2030;overflow:hidden}
-  .dose-fill{height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:width .4s}
-
-  /* ---------- recipes ---------- */
-  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:14px}
-  .card-head{display:flex;align-items:center;gap:10px}
-  .card-head h3{margin:0;font-size:16px}
-  .ico{font-size:20px}
-  .tips{margin:0;padding-left:18px;font-size:13px;color:#c3c9d8;line-height:1.6}
-  .card-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:auto}
-
-  /* ---------- aid ---------- */
-  .aid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-  @media(max-width:820px){.aid{grid-template-columns:1fr}}
-  .breath-stage{
-    height:210px;display:flex;align-items:center;justify-content:center;position:relative;
-    background:radial-gradient(circle at 50% 55%,rgba(124,92,255,.16),transparent 65%);
-    border-radius:14px
-  }
-  .breath-circle{
-    width:120px;height:120px;border-radius:50%;
-    background:linear-gradient(135deg,var(--acc),var(--acc2));
-    box-shadow:0 0 50px rgba(124,92,255,.5);
-    transform:scale(1)
-  }
-  .breath-label{
-    position:absolute;font-weight:700;font-size:14px;letter-spacing:1px;
-    text-transform:uppercase;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.6)
-  }
-  .breath-controls{display:flex;align-items:center;gap:14px;margin-top:12px;flex-wrap:wrap}
-
-  /* ---------- diary ---------- */
-  .diary-form{display:flex;flex-direction:column;gap:10px;margin-bottom:18px}
-  textarea,select{
-    font:inherit;background:var(--panel-2);color:var(--text);border:1px solid var(--line);
-    border-radius:11px;padding:11px 13px;resize:vertical
-  }
-  textarea:focus,select:focus{outline:none;border-color:var(--acc)}
-  .diary-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
-  .diary-item{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 15px}
-  .di-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
-  .di-date{font-size:12px;color:var(--muted)}
-  .diary-item p{margin:0 0 8px;font-size:14px;line-height:1.5;color:#d4d9e6}
-  .del{background:transparent;border:none;color:var(--muted);font-size:12px;padding:0}
-  .del:hover{color:var(--bad);background:transparent}
-  .empty{color:var(--muted);font-size:14px;padding:14px 0}
-  footer{margin-top:34px;text-align:center;font-size:12px;color:#5a6278}
+  button:hover,select:hover{border-color:#3a4256;background:#1a1f2b}
+  button.primary{background:linear-gradient(135deg,var(--acc),#5b8cff);border:none;color:#fff;font-weight:600}
+  button.primary:hover{filter:brightness(1.09)}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+  .row label{font-size:13px;color:var(--muted)}
+  .muted{color:var(--muted);font-size:12.5px;text-align:center;margin-top:22px}
 </style>
 </head>
 <body>
 <div class="wrap">
+  <h1>Шахматы <span>доска + движок</span></h1>
 
-  <header>
-    <div class="brand">
-      <div class="pill"></div>
-      <div>
-        <h1>Chess Painkiller</h1>
-        <p class="tag">обезболивающее для шахматиста</p>
-      </div>
-    </div>
-    <div class="stats">
-      <div class="stat"><b id="statDose">0</b><span>доза сегодня</span></div>
-      <div class="stat"><b id="statSolved">0</b><span>всего решено</span></div>
-    </div>
-  </header>
+  <div id="board" class="board"></div>
+  <div id="status" class="status">Ход белых</div>
 
-  <nav class="tabs">
-    <button class="tab active" data-view="train">💊 Тренировка</button>
-    <button class="tab" data-view="recipes">📋 Симптомы</button>
-    <button class="tab" data-view="aid">🌬 Аптечка</button>
-    <button class="tab" data-view="diary">📓 Дневник боли</button>
-  </nav>
+  <div class="controls">
+    <button class="primary" id="newBtn">Новая партия</button>
+    <button id="undoBtn">Отменить ход</button>
+    <button id="flipBtn">Перевернуть</button>
+  </div>
 
-  <!-- ================= TRAIN ================= -->
-  <section class="view active" id="view-train">
-    <div class="trainer">
-      <div class="board-wrap">
-        <div id="board" class="board"></div>
-        <div class="board-actions">
-          <button id="btnHint">💡 Подсказка</button>
-          <button id="btnSkip">Пропустить</button>
-        </div>
-      </div>
+  <div class="row">
+    <label for="sideSel">Играю за:</label>
+    <select id="sideSel">
+      <option value="w">белых</option>
+      <option value="b">чёрных</option>
+    </select>
+    <label for="diffSel">Сложность:</label>
+    <select id="diffSel">
+      <option value="1">легко (глубина 1)</option>
+      <option value="2" selected>средне (глубина 2)</option>
+      <option value="3">сложно (глубина 3)</option>
+    </select>
+  </div>
 
-      <aside class="panel-side">
-        <div class="meta">
-          <span class="chip" id="pSymptom">—</span>
-          <span class="chip ghost">белые</span>
-        </div>
-        <h2 id="pTitle">Загрузка…</h2>
-        <p class="muted small" style="margin:0">Найди лучший ход за белых. Клик по фигуре — клик по полю.</p>
-
-        <div class="feedback" id="feedback"></div>
-
-        <button class="primary" id="btnNext" hidden>Следующая доза →</button>
-
-        <div class="dose">
-          <div class="dose-top"><span>Доза дня</span><b id="doseText">0 / 5</b></div>
-          <div class="dose-track"><div class="dose-fill" id="doseFill"></div></div>
-        </div>
-      </aside>
-    </div>
-  </section>
-
-  <!-- ================= RECIPES ================= -->
-  <section class="view" id="view-recipes">
-    <div class="cards" id="recipeCards"></div>
-  </section>
-
-  <!-- ================= AID ================= -->
-  <section class="view" id="view-aid">
-    <div class="aid">
-      <div class="card">
-        <h3 style="margin:0 0 4px">Дыхание 4-4-4-4</h3>
-        <p class="muted small" style="margin:0 0 10px">Протокол «анти-тильт»: минута ровного дыхания перед следующей партией.</p>
-        <div class="breath-stage">
-          <div class="breath-circle" id="breathCircle"></div>
-          <div class="breath-label" id="breathLabel">Готов?</div>
-        </div>
-        <div class="breath-controls">
-          <button class="primary" id="breathBtn">Начать</button>
-          <span class="muted small" id="breathCount"></span>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3 style="margin:0 0 10px">Микродозы</h3>
-        <p class="muted small" style="margin:0 0 12px">Пять минут — одна задача. Больше не надо.</p>
-        <button class="primary small" id="btnMicro">Принять микродозу</button>
-        <hr style="border:none;border-top:1px solid var(--line);margin:16px 0">
-        <h3 style="margin:0 0 8px;font-size:15px">Если болит прямо сейчас</h3>
-        <ul class="tips">
-          <li>Закрой ноутбук. Физически.</li>
-          <li>Не играй «на отыгрыш» — это удвоение дозы боли.</li>
-          <li>Запиши, что именно болит, в дневник. Названная боль слабее.</li>
-          <li>Вернись через 20 минут и реши одну лёгкую задачу.</li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <!-- ================= DIARY ================= -->
-  <section class="view" id="view-diary">
-    <div class="card">
-      <form class="diary-form" id="diaryForm">
-        <select id="dSym">
-          <option>Зевки</option>
-          <option>Тактика</option>
-          <option>Эндшпиль</option>
-          <option>Тильт</option>
-          <option>Другое</option>
-        </select>
-        <textarea id="dNote" rows="3" placeholder="Что болит? Где проиграл? Что заметил?"></textarea>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="primary" type="submit">Записать</button>
-          <button type="button" id="btnReset">Сбросить прогресс</button>
-        </div>
-      </form>
-      <ul class="diary-list" id="diaryList"></ul>
-    </div>
-  </section>
-
-  <footer>Chess Painkiller · демо без движка: правильный ход сверяется с эталоном · прогресс хранится локально</footer>
+  <p class="muted">Клик по фигуре — затем по полю. Пешка автоматически превращается в ферзя.</p>
 </div>
 
 <script>
-/* =========================================================
-   ДАННЫЕ ЗАДАЧ
-   ========================================================= */
-const PUZZLES = [
-  {
-    id:'back-rank', title:'Мат на задней линии', symptom:'Тактика',
-    fen:'6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1',
-    from:'a1', to:'a8',
-    hint:'Ладья мечтает о восьмой горизонтали.',
-    explain:'Ra8# — мат. Свои же пешки f7–g7–h7 закрыли королю все выходы. Классическая «задняя линия».'
-  },
-  {
-    id:'kr-mate', title:'Король и ладья: мат', symptom:'Эндшпиль',
-    fen:'6k1/8/6K1/8/8/8/8/R7 w - - 0 1',
-    from:'a1', to:'a8',
-    hint:'Отрежь восьмую горизонталь.',
-    explain:'Ra8# — мат. Король g6 забрал поля f7, g7, h7, а ладья — f8 и h8. Мат королём и ладьёй надо доводить до автоматизма.'
-  },
-  {
-    id:'fork-q', title:'Вилка на короля и ферзя', symptom:'Тактика',
-    fen:'6k1/3q4/8/8/4N3/8/8/4K3 w - - 0 1',
-    from:'e4', to:'f6',
-    hint:'Конь ищет клетку, откуда бьёт сразу двоих.',
-    explain:'Nf6+ — конь одновременно даёт шах королю g8 и нападает на ферзя d7. Король обязан уйти, ферзь теряется.'
-  },
-  {
-    id:'fork-r', title:'Вилка на короля и ладью', symptom:'Тактика',
-    fen:'k3r3/8/8/1N6/8/8/8/4K3 w - - 0 1',
-    from:'b5', to:'c7',
-    hint:'Клетка c7 — «вилочная».',
-    explain:'Nc7+ — шах королю a8 и удар по ладье e8. Король уходит, ладья остаётся.'
-  },
-  {
-    id:'free-queen', title:'Бесплатный ферзь', symptom:'Зевки',
-    fen:'4k3/8/8/3q4/8/8/8/3RK3 w - - 0 1',
-    from:'d1', to:'d5',
-    hint:'Посчитай, кто защищает ферзя на d5.',
-    explain:'Rxd5 — ферзь ничем не защищён, король e8 до него не достаёт. Всё, что висит, — забираем.'
-  },
-  {
-    id:'queen-mate', title:'Ферзь по восьмой', symptom:'Тактика',
-    fen:'7k/6pp/8/8/8/8/8/5QK1 w - - 0 1',
-    from:'f1', to:'f8',
-    hint:'Ферзь любит восьмую горизонталь.',
-    explain:'Qf8# — ферзь бьёт по всей восьмой горизонтали, а пешки g7 и h7 запирают короля. Мат.'
-  },
-  {
-    id:'promo', title:'Превращение', symptom:'Эндшпиль',
-    fen:'8/6P1/8/8/8/8/8/k6K w - - 0 1',
-    from:'g7', to:'g8', promo:'q',
-    hint:'Пешка на седьмой — почти ферзь.',
-    explain:'g8=Q — пешка стала ферзём. В эндшпиле всегда проверяй, не проходит ли пешка.'
-  },
-  {
-    id:'hanging-q', title:'Ферзь под боем', symptom:'Зевки',
-    fen:'4k3/4q3/5B2/8/8/8/8/4K3 w - - 0 1',
-    from:'f6', to:'e7',
-    hint:'Слон смотрит на e7.',
-    explain:'Bxe7 — слон забирает ферзя. Да, король отыграет слона, но ферзь за слона — отличная сделка.'
-  }
-];
-
-const SYM = [
-  {name:'Зевки', icon:'👁', desc:'Отдаю фигуры «просто так».',
-   tips:['Перед каждым ходом: «что висит у него, что висит у меня?»','Правило CCT: Checks → Captures → Threats.']},
-  {name:'Тактика', icon:'⚡', desc:'Не вижу матов, вилок и связок.',
-   tips:['5–10 задач в день, но медленно.','Сначала шахи, потом взятия, потом угрозы.']},
-  {name:'Эндшпиль', icon:'⏳', desc:'Сливаю простые окончания.',
-   tips:['Доведи до автоматизма мат королём и ладьёй.','Считай пешки и поля, а не «на глаз».']},
-  {name:'Тильт', icon:'🌊', desc:'Теряю контроль после ошибки.',
-   tips:['После поражения — пауза минимум 5 минут.','Не отыгрывайся в тот же день.']}
-];
-
-/* =========================================================
-   ХРАНИЛИЩЕ
-   ========================================================= */
-const store = {
-  get(k, d){ try { const v = JSON.parse(localStorage.getItem('cp.'+k)); return v === null || v === undefined ? d : v; } catch(e){ return d; } },
-  set(k, v){ try { localStorage.setItem('cp.'+k, JSON.stringify(v)); } catch(e){} }
+/* ================= утилиты ================= */
+const GLYPHS = {
+  w:{k:'♔',q:'♕',r:'♖',b:'♗',n:'♘',p:'♙'},
+  b:{k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'}
 };
-const todayKey = () => new Date().toISOString().slice(0,10);
-function getToday(){
-  let t = store.get('today', null);
-  if(!t || t.date !== todayKey()){ t = {date: todayKey(), ids: []}; store.set('today', t); }
-  return t;
-}
-const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-/* =========================================================
-   ДОСКА
-   ========================================================= */
 const FILES = 'abcdefgh';
-const GLYPH = {k:'♚', q:'♛', r:'♜', b:'♝', n:'♞', p:'♟'};
 
-const boardEl   = document.getElementById('board');
-const feedbackEl= document.getElementById('feedback');
-const nextBtn   = document.getElementById('btnNext');
+/* ================= состояние ================= */
+let game = new Chess();
+let playerColor = 'w';
+let flipped = false;
+let selected = null;
+let legalTargets = new Set();
+let lastMove = null;
+let thinking = false;
+let depth = 2;
 
-let state = { puzzle:null, board:{}, sel:null, solved:false, wrong:0, hinted:false, hintSq:null };
-
-function parseFEN(fen){
-  const rows = fen.split(' ')[0].split('/');
-  const b = {};
-  rows.forEach((row, ri) => {
-    let f = 0;
-    for(const ch of row){
-      if(/\d/.test(ch)) f += +ch;
-      else { b[FILES[f] + (8 - ri)] = ch; f++; }
-    }
-  });
-  return b;
-}
+/* ================= отрисовка ================= */
+const boardEl = document.getElementById('board');
 
 function render(){
-  const pz = state.puzzle;
   let html = '';
-  for(let r = 8; r >= 1; r--){
-    for(let f = 0; f < 8; f++){
-      const sq = FILES[f] + r;
-      const dark = (f + r) % 2 === 1;
-      let cls = 'sq ' + (dark ? 'dark' : 'light');
-      if(state.sel === sq) cls += ' sel';
-      if(state.hintSq === sq) cls += ' hint';
-      if(state.solved && pz && (sq === pz.from || sq === pz.to)) cls += ' done';
+  for(let dr = 0; dr < 8; dr++){
+    for(let df = 0; df < 8; df++){
+      const br = flipped ? 7 - dr : dr;
+      const bf = flipped ? 7 - df : df;
+      const file = FILES[bf];
+      const rank = 8 - br;
+      const sq = file + rank;
+      const isDark = (br + bf) % 2 === 1;
 
-      let inner = '';
-      const piece = state.board[sq];
-      if(piece){
-        const white = piece === piece.toUpperCase();
-        inner += `<span class="piece ${white ? 'w' : 'b'}">${GLYPH[piece.toLowerCase()]}</span>`;
+      let cls = 'sq ' + (isDark ? 'dark' : 'light');
+      if(selected === sq) cls += ' sel';
+      if(lastMove && (lastMove.from === sq || lastMove.to === sq)) cls += ' last';
+      if(legalTargets.has(sq)){
+        const target = game.get(sq);
+        cls += target ? ' target-cap' : '';
+        cls += ' target-sq';
       }
-      if(r === 1) inner += `<i class="coord file">${FILES[f]}</i>`;
-      if(f === 0) inner += `<i class="coord rank">${r}</i>`;
+      if(game.in_check() && game.turn() === 'w' && isKing(sq,'w')) cls += ' check';
+      if(game.in_check() && game.turn() === 'b' && isKing(sq,'b')) cls += ' check';
 
-      html += `<div class="${cls}" data-sq="${sq}">${inner}</div>`;
+      const piece = getPiece(sq);
+      let content = '';
+      if(legalTargets.has(sq)) content += '<span class="target"></span>';
+      if(piece) content += `<span class="piece ${piece.color}">${GLYPHS[piece.color][piece.type]}</span>`;
+      if(dr === 7) content += `<i class="coord file">${file}</i>`;
+      if(df === 0) content += `<i class="coord rank">${rank}</i>`;
+
+      html += `<div class="${cls}" data-sq="${sq}">${content}</div>`;
     }
   }
   boardEl.innerHTML = html;
 }
 
-function setFeedback(kind, text){
-  feedbackEl.className = 'feedback ' + (kind || '');
-  feedbackEl.innerHTML = text;
+function getPiece(sq){
+  try { return game.get(sq); } catch(e){ return null; }
+}
+function isKing(sq, color){
+  const p = getPiece(sq);
+  return p && p.type === 'k' && p.color === color;
 }
 
-function startPuzzle(id){
-  const pz = PUZZLES.find(p => p.id === id);
-  if(!pz) return;
-  state = { puzzle:pz, board:parseFEN(pz.fen), sel:null, solved:false, wrong:0, hinted:false, hintSq:null };
-  document.getElementById('pTitle').textContent = pz.title;
-  document.getElementById('pSymptom').textContent = pz.symptom;
-  nextBtn.hidden = true;
-  setFeedback('', '<span class="muted">Ход белых. Найди лучший ход.</span>');
-  render();
-}
-
-function nextPuzzle(){
-  const solved = store.get('solved', []);
-  const startIdx = state.puzzle ? PUZZLES.findIndex(p => p.id === state.puzzle.id) : -1;
-  for(let k = 1; k <= PUZZLES.length; k++){
-    const p = PUZZLES[(startIdx + k + PUZZLES.length) % PUZZLES.length];
-    if(!solved.includes(p.id)) return startPuzzle(p.id);
-  }
-  startPuzzle(PUZZLES[Math.floor(Math.random() * PUZZLES.length)].id);
-}
-
-function handleClick(sq){
-  if(!state.puzzle || state.solved) return;
-  const piece = state.board[sq];
-
-  if(state.sel){
-    if(sq === state.sel){ state.sel = null; render(); return; }
-    if(piece && piece === piece.toUpperCase()){ state.sel = sq; render(); return; }
-    const from = state.sel;
-    state.sel = null;
-    attempt(from, sq);
-  } else if(piece && piece === piece.toUpperCase()){
-    state.sel = sq;
-    render();
-  }
-}
-
-function attempt(from, to){
-  const pz = state.puzzle;
-  if(from === pz.from && to === pz.to){
-    state.board[to] = pz.promo ? pz.promo.toUpperCase() : state.board[from];
-    delete state.board[from];
-    state.solved = true;
-    state.sel = null;
-    state.hintSq = null;
-    render();
-    onSolved();
+/* ================= статус ================= */
+function updateStatus(){
+  const el = document.getElementById('status');
+  if(game.in_checkmate()){
+    const winner = game.turn() === 'w' ? 'чёрные' : 'белые';
+    el.textContent = 'Мат! Победа: ' + winner;
+    el.className = 'status over';
+  } else if(game.in_stalemate()){
+    el.textContent = 'Пат — ничья';
+    el.className = 'status over';
+  } else if(game.in_threefold_repetition()){
+    el.textContent = 'Ничья: троекратное повторение';
+    el.className = 'status over';
+  } else if(game.insufficient_material()){
+    el.textContent = 'Ничья: недостаточно материала';
+    el.className = 'status over';
+  } else if(game.in_draw()){
+    el.textContent = 'Ничья (правило 50 ходов)';
+    el.className = 'status over';
+  } else if(thinking){
+    el.textContent = 'Движок думает…';
+    el.className = 'status thinking';
+  } else if(game.in_check()){
+    el.textContent = (game.turn() === 'w' ? 'Белые' : 'Чёрные') + ' под шахом';
+    el.className = 'status check';
   } else {
-    state.wrong++;
-    boardEl.classList.remove('shake');
-    void boardEl.offsetWidth;
-    boardEl.classList.add('shake');
-    setFeedback('bad', 'Не то. Попробуй другой ход.');
-    render();
-    if(state.wrong >= 2 && !state.hinted) showHint();
+    el.textContent = game.turn() === 'w' ? 'Ход белых' : 'Ход чёрных';
+    el.className = 'status';
   }
 }
 
-function onSolved(){
-  const pz = state.puzzle;
+/* ================= взаимодействие ================= */
+boardEl.addEventListener('click', e => {
+  const el = e.target.closest('.sq');
+  if(el) onSquareClick(el.dataset.sq);
+});
 
-  const solved = store.get('solved', []);
-  if(!solved.includes(pz.id)){ solved.push(pz.id); store.set('solved', solved); }
+function onSquareClick(sq){
+  if(thinking || game.game_over()) return;
+  if(game.turn() !== playerColor) return;
 
-  const t = getToday();
-  if(!t.ids.includes(pz.id)){ t.ids.push(pz.id); store.set('today', t); }
-
-  setFeedback('ok', '<b>✓ Верно.</b> ' + pz.explain);
-  nextBtn.hidden = false;
-  updateStats();
-}
-
-function showHint(){
-  if(!state.puzzle || state.solved) return;
-  state.hinted = true;
-  state.hintSq = state.puzzle.from;
-  render();
-  setFeedback('info', '💊 <b>Подсказка:</b> ' + state.puzzle.hint);
-}
-
-/* =========================================================
-   СТАТИСТИКА
-   ========================================================= */
-function updateStats(){
-  const t = getToday();
-  const total = store.get('solved', []).length;
-  document.getElementById('statDose').textContent = t.ids.length;
-  document.getElementById('statSolved').textContent = total;
-  document.getElementById('doseText').textContent = t.ids.length + ' / 5';
-  document.getElementById('doseFill').style.width = Math.min(100, t.ids.length / 5 * 100) + '%';
-}
-
-/* =========================================================
-   РЕЦЕПТЫ
-   ========================================================= */
-function renderRecipes(){
-  const box = document.getElementById('recipeCards');
-  box.innerHTML = SYM.map(s => {
-    const list = PUZZLES.filter(p => p.symptom === s.name);
-    return `
-      <div class="card">
-        <div class="card-head"><span class="ico">${s.icon}</span><h3>${esc(s.name)}</h3></div>
-        <p class="muted small" style="margin:0">${esc(s.desc)}</p>
-        <ul class="tips">${s.tips.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
-        <div class="card-foot">
-          <span class="muted small">Упражнений: ${list.length}</span>
-          ${list.length
-            ? `<button class="primary small" data-train="${esc(s.name)}">Тренировать</button>`
-            : `<button class="small" data-tab="aid">Подышать</button>`}
-        </div>
-      </div>`;
-  }).join('');
-}
-
-/* =========================================================
-   ДЫХАНИЕ
-   ========================================================= */
-const PH = [
-  {n:'Вдох',     s:4, sc:1.25},
-  {n:'Задержка', s:4, sc:1.25},
-  {n:'Выдох',    s:4, sc:0.82},
-  {n:'Задержка', s:4, sc:0.82}
-];
-let br = { on:false, phase:0, remain:0, timer:null };
-
-function brPhase(i){
-  br.phase = i;
-  br.remain = PH[i].s;
-  const c = document.getElementById('breathCircle');
-  c.style.transition = `transform ${PH[i].s}s linear`;
-  c.style.transform  = `scale(${PH[i].sc})`;
-  document.getElementById('breathLabel').textContent = PH[i].n;
-  document.getElementById('breathCount').textContent = br.remain + ' с';
-}
-
-function brStart(){
-  br.on = true;
-  document.getElementById('breathBtn').textContent = 'Стоп';
-  brPhase(0);
-  br.timer = setInterval(() => {
-    br.remain--;
-    if(br.remain <= 0) brPhase((br.phase + 1) % 4);
-    else document.getElementById('breathCount').textContent = br.remain + ' с';
-  }, 1000);
-}
-
-function brStop(){
-  br.on = false;
-  clearInterval(br.timer);
-  const c = document.getElementById('breathCircle');
-  c.style.transition = 'transform .6s ease';
-  c.style.transform  = 'scale(1)';
-  document.getElementById('breathLabel').textContent = 'Готов?';
-  document.getElementById('breathCount').textContent = '';
-  document.getElementById('breathBtn').textContent = 'Начать';
-}
-
-/* =========================================================
-   ДНЕВНИК
-   ========================================================= */
-function renderDiary(){
-  const items = store.get('diary', []);
-  const list = document.getElementById('diaryList');
-  if(!items.length){
-    list.innerHTML = '<li class="empty">Записей пока нет. Больно бывает у всех — просто запиши, где именно.</li>';
-    return;
-  }
-  list.innerHTML = items.slice().reverse().map(it => `
-    <li class="diary-item">
-      <div class="di-top">
-        <span class="chip">${esc(it.sym)}</span>
-        <span class="di-date">${esc(it.date)}</span>
-      </div>
-      <p>${esc(it.note)}</p>
-      <button class="del" data-id="${esc(it.id)}">удалить</button>
-    </li>`).join('');
-}
-
-/* =========================================================
-   НАВИГАЦИЯ
-   ========================================================= */
-function switchTab(name){
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
-  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
-  window.scrollTo({top:0, behavior:'smooth'});
-}
-
-/* =========================================================
-   ИНИЦИАЛИЗАЦИЯ
-   ========================================================= */
-function init(){
-  // табы
-  document.querySelectorAll('.tab').forEach(t =>
-    t.addEventListener('click', () => switchTab(t.dataset.view))
-  );
-
-  // доска
-  boardEl.addEventListener('click', e => {
-    const el = e.target.closest('.sq');
-    if(el) handleClick(el.dataset.sq);
-  });
-
-  document.getElementById('btnHint').addEventListener('click', showHint);
-  document.getElementById('btnSkip').addEventListener('click', nextPuzzle);
-  nextBtn.addEventListener('click', nextPuzzle);
-
-  // рецепты
-  renderRecipes();
-  document.getElementById('recipeCards').addEventListener('click', e => {
-    const train = e.target.closest('[data-train]');
-    if(train){
-      const list = PUZZLES.filter(p => p.symptom === train.dataset.train);
-      if(list.length){
-        startPuzzle(list[Math.floor(Math.random() * list.length)].id);
-        switchTab('train');
+  if(selected){
+    if(legalTargets.has(sq)){
+      if(tryMove(selected, sq)){
+        selected = null; legalTargets.clear();
+        render(); afterPlayerMove();
+        return;
       }
+    }
+    const p = getPiece(sq);
+    if(p && p.color === playerColor){
+      selected = sq;
+      updateTargets();
+      render();
       return;
     }
-    const tab = e.target.closest('[data-tab]');
-    if(tab) switchTab(tab.dataset.tab);
-  });
+    selected = null; legalTargets.clear();
+    render();
+    return;
+  }
 
-  // аптечка
-  document.getElementById('breathBtn').addEventListener('click', () => br.on ? brStop() : brStart());
-  document.getElementById('btnMicro').addEventListener('click', () => {
-    const solved = store.get('solved', []);
-    const pool = PUZZLES.filter(p => !solved.includes(p.id));
-    const pick = (pool.length ? pool : PUZZLES)[Math.floor(Math.random() * (pool.length ? pool.length : PUZZLES.length))];
-    startPuzzle(pick.id);
-    switchTab('train');
-  });
-
-  // дневник
-  const form = document.getElementById('diaryForm');
-  form.addEventListener('submit', e => {
-    e.preventDefault();
-    const note = document.getElementById('dNote').value.trim();
-    if(!note) return;
-    const items = store.get('diary', []);
-    items.push({
-      id: Date.now() + '-' + Math.random().toString(16).slice(2),
-      date: new Date().toLocaleString('ru-RU', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}),
-      sym: document.getElementById('dSym').value,
-      note
-    });
-    store.set('diary', items);
-    document.getElementById('dNote').value = '';
-    renderDiary();
-  });
-
-  document.getElementById('diaryList').addEventListener('click', e => {
-    const btn = e.target.closest('.del');
-    if(!btn) return;
-    const items = store.get('diary', []).filter(it => it.id !== btn.dataset.id);
-    store.set('diary', items);
-    renderDiary();
-  });
-
-  document.getElementById('btnReset').addEventListener('click', () => {
-    if(!confirm('Сбросить прогресс и дневник?')) return;
-    ['solved','today','diary'].forEach(k => localStorage.removeItem('cp.' + k));
-    renderDiary();
-    updateStats();
-  });
-
-  // первая задача
-  renderDiary();
-  updateStats();
-  const solved = store.get('solved', []);
-  const first = PUZZLES.find(p => !solved.includes(p.id)) || PUZZLES[0];
-  startPuzzle(first.id);
+  const p = getPiece(sq);
+  if(p && p.color === playerColor){
+    selected = sq;
+    updateTargets();
+    render();
+  }
 }
 
-document.addEventListener('DOMContentLoaded', init);
+function updateTargets(){
+  legalTargets.clear();
+  if(!selected) return;
+  const moves = game.moves({ square: selected, verbose: true });
+  for(const m of moves) legalTargets.add(m.to);
+}
+
+function tryMove(from, to){
+  const moves = game.moves({ verbose: true });
+  const matching = moves.filter(m => m.from === from && m.to === to);
+  if(!matching.length) return null;
+  const needsPromo = matching.some(m => m.promotion);
+  const mv = game.move({ from, to, promotion: needsPromo ? 'q' : undefined });
+  if(!mv) return null;
+  lastMove = { from: mv.from, to: mv.to };
+  return mv;
+}
+
+function afterPlayerMove(){
+  render();
+  if(game.game_over()){ updateStatus(); return; }
+  if(game.turn() !== playerColor) engineMove();
+  else updateStatus();
+}
+
+/* ================= движок ================= */
+const VAL = { p:100, n:320, b:330, r:500, q:900, k:0 };
+
+// piece-square tables, белая перспектива, сверху (rank 8) вниз (rank 1)
+const PST = {
+  p:[ 0,0,0,0,0,0,0,0, 50,50,50,50,50,50,50,50, 10,10,20,30,30,20,10,10,
+      5,5,10,25,25,10,5,5, 0,0,0,20,20,0,0,0, 5,-5,-10,0,0,-10,-5,5,
+      5,10,10,-20,-20,10,10,5, 0,0,0,0,0,0,0,0 ],
+  n:[-50,-40,-30,-30,-30,-30,-40,-50, -40,-20,0,0,0,0,-20,-40,
+      -30,0,10,15,15,10,0,-30, -30,5,15,20,20,15,5,-30,
+      -30,0,15,20,20,15,0,-30, -30,5,10,15,15,10,5,-30,
+      -40,-20,0,5,5,0,-20,-40, -50,-40,-30,-30,-30,-30,-40,-50],
+  b:[-20,-10,-10,-10,-10,-10,-10,-20, -10,0,0,0,0,0,0,-10,
+      -10,0,5,10,10,5,0,-10, -10,5,5,10,10,5,5,-10,
+      -10,0,10,10,10,10,0,-10, -10,10,10,10,10,10,10,-10,
+      -10,5,0,0,0,0,5,-10, -20,-10,-10,-10,-10,-10,-10,-20],
+  r:[ 0,0,0,0,0,0,0,0, 5,10,10,10,10,10,10,5, -5,0,0,0,0,0,0,-5,
+      -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5,
+      -5,0,0,0,0,0,0,-5, 0,0,0,5,5,0,0,0],
+  q:[-20,-10,-10,-5,-5,-10,-10,-20, -10,0,0,0,0,0,0,-10,
+      -10,0,5,5,5,5,0,-10, -5,0,5,5,5,5,0,-5, 0,0,5,5,5,5,0,-5,
+      -10,5,5,5,5,5,0,-10, -10,0,5,0,0,0,0,-10, -20,-10,-10,-5,-5,-10,-10,-20],
+  k:[-30,-40,-40,-50,-50,-40,-40,-30, -30,-40,-40,-50,-50,-40,-40,-30,
+      -30,-40,-40,-50,-50,-40,-40,-30, -30,-40,-40,-50,-50,-40,-40,-30,
+      -20,-30,-30,-40,-40,-30,-30,-20, -10,-20,-20,-20,-20,-20,-20,-10,
+      20,20,0,0,0,0,20,20, 20,30,10,0,0,10,30,20]
+};
+
+function evaluate(g){
+  const board = g.board(); // [0] = rank 8
+  let score = 0;
+  for(let r = 0; r < 8; r++){
+    for(let f = 0; f < 8; f++){
+      const sq = board[r][f];
+      if(!sq) continue;
+      const val = VAL[sq.type];
+      const idx = sq.color === 'w' ? r*8 + f : (7 - r)*8 + f;
+      const ps = PST[sq.type][idx];
+      score += sq.color === 'w' ? (val + ps) : -(val + ps);
+    }
+  }
+  return score;
+}
+
+function search(g, d, alpha, beta){
+  if(d === 0) return evaluate(g);
+  const moves = g.moves({ verbose: true });
+  if(!moves.length){
+    if(g.in_checkmate()){
+      // тот, чей ход — получил мат
+      return g.turn() === 'w' ? -100000 + (10 - d) : 100000 - (10 - d);
+    }
+    return 0; // пат
+  }
+  // простая упорядоченность: сначала взятия
+  moves.sort((a,b) => (b.captured ? VAL[b.captured] : 0) - (a.captured ? VAL[a.captured] : 0));
+
+  const white = g.turn() === 'w';
+  let best = white ? -Infinity : Infinity;
+
+  for(const m of moves){
+    g.move(m);
+    const s = search(g, d - 1, alpha, beta);
+    g.undo();
+    if(white){
+      if(s > best) best = s;
+      if(best > alpha) alpha = best;
+    } else {
+      if(s < best) best = s;
+      if(best < beta) beta = best;
+    }
+    if(beta <= alpha) break;
+  }
+  return best;
+}
+
+function findBestMove(g, d){
+  const moves = g.moves({ verbose: true });
+  if(!moves.length) return null;
+  moves.sort((a,b) => (b.captured ? VAL[b.captured] : 0) - (a.captured ? VAL[a.captured] : 0));
+
+  const white = g.turn() === 'w';
+  let best = null;
+  let bestScore = white ? -Infinity : Infinity;
+
+  for(const m of moves){
+    g.move(m);
+    const s = search(g, d - 1, -Infinity, Infinity);
+    g.undo();
+    if(white ? s > bestScore : s < bestScore){
+      bestScore = s;
+      best = m;
+    }
+  }
+  return best;
+}
+
+function engineMove(){
+  thinking = true;
+  updateStatus();
+  setTimeout(() => {
+    const move = findBestMove(game, depth);
+    if(move){
+      const mv = game.move({ from: move.from, to: move.to, promotion: move.promotion || 'q' });
+      if(mv) lastMove = { from: mv.from, to: mv.to };
+    }
+    thinking = false;
+    render();
+    updateStatus();
+  }, 40);
+}
+
+/* ================= управление ================= */
+function newGame(){
+  game = new Chess();
+  selected = null; legalTargets.clear();
+  lastMove = null; thinking = false;
+  flipped = playerColor === 'b';
+  render();
+  updateStatus();
+  if(playerColor === 'b') engineMove();
+}
+
+document.getElementById('newBtn').addEventListener('click', newGame);
+document.getElementById('undoBtn').addEventListener('click', () => {
+  if(thinking) return;
+  // отменяем два полухода, если ходил движок
+  game.undo();
+  if(game.turn() !== playerColor && game.history().length) game.undo();
+  selected = null; legalTargets.clear();
+  const h = game.history({ verbose: true });
+  lastMove = h.length ? { from: h[h.length-1].from, to: h[h.length-1].to } : null;
+  render(); updateStatus();
+});
+document.getElementById('flipBtn').addEventListener('click', () => {
+  flipped = !flipped; render();
+});
+document.getElementById('sideSel').addEventListener('change', e => {
+  playerColor = e.target.value;
+  newGame();
+});
+document.getElementById('diffSel').addEventListener('change', e => {
+  depth = parseInt(e.target.value, 10);
+});
+
+/* ================= старт ================= */
+render();
+updateStatus();
 </script>
 </body>
 </html>
