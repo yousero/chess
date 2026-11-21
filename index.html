@@ -26,12 +26,15 @@
   h1 span{color:var(--muted);font-weight:400;font-size:13px;margin-left:8px}
 
   .board{
-    display:grid;grid-template-columns:repeat(8,1fr);aspect-ratio:1/1;
+    display:grid;
+    grid-template-columns:repeat(8,1fr);
+    grid-template-rows:repeat(8,1fr);   /* ← вот этого не хватало */
+    aspect-ratio:1/1;
     border-radius:14px;overflow:hidden;border:1px solid var(--line);
     box-shadow:0 24px 60px rgba(0,0,0,.55);
     user-select:none;-webkit-tap-highlight-color:transparent;
   }
-  .sq{position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .sq{position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden}
   .sq.light{background:var(--light)}
   .sq.dark{background:var(--dark)}
   .sq.last{box-shadow:inset 0 0 0 4px rgba(255,235,59,.35)}
@@ -97,6 +100,7 @@
     <select id="sideSel">
       <option value="w">белых</option>
       <option value="b">чёрных</option>
+      <option value="self">движок сам с собой</option>
     </select>
     <label for="diffSel">Сложность:</label>
     <select id="diffSel">
@@ -106,7 +110,7 @@
     </select>
   </div>
 
-  <p class="muted">Клик по фигуре — затем по полю. Пешка автоматически превращается в ферзя.</p>
+  <p class="muted">Клик по фигуре — затем по полю. В режиме «сам с собой» оба цвета ходит движок.</p>
 </div>
 
 <script>
@@ -120,12 +124,14 @@ const FILES = 'abcdefgh';
 /* ================= состояние ================= */
 let game = new Chess();
 let playerColor = 'w';
+let selfPlay = false;
 let flipped = false;
 let selected = null;
 let legalTargets = new Set();
 let lastMove = null;
 let thinking = false;
 let depth = 2;
+let engineTimer = null;
 
 /* ================= отрисовка ================= */
 const boardEl = document.getElementById('board');
@@ -146,8 +152,7 @@ function render(){
       if(lastMove && (lastMove.from === sq || lastMove.to === sq)) cls += ' last';
       if(legalTargets.has(sq)){
         const target = game.get(sq);
-        cls += target ? ' target-cap' : '';
-        cls += ' target-sq';
+        if(target) cls += ' target-cap';
       }
       if(game.in_check() && game.turn() === 'w' && isKing(sq,'w')) cls += ' check';
       if(game.in_check() && game.turn() === 'b' && isKing(sq,'b')) cls += ' check';
@@ -211,7 +216,7 @@ boardEl.addEventListener('click', e => {
 });
 
 function onSquareClick(sq){
-  if(thinking || game.game_over()) return;
+  if(selfPlay || thinking || game.game_over()) return;
   if(game.turn() !== playerColor) return;
 
   if(selected){
@@ -263,14 +268,13 @@ function tryMove(from, to){
 function afterPlayerMove(){
   render();
   if(game.game_over()){ updateStatus(); return; }
-  if(game.turn() !== playerColor) engineMove();
+  if(!selfPlay && game.turn() !== playerColor) maybeEngineMove();
   else updateStatus();
 }
 
 /* ================= движок ================= */
 const VAL = { p:100, n:320, b:330, r:500, q:900, k:0 };
 
-// piece-square tables, белая перспектива, сверху (rank 8) вниз (rank 1)
 const PST = {
   p:[ 0,0,0,0,0,0,0,0, 50,50,50,50,50,50,50,50, 10,10,20,30,30,20,10,10,
       5,5,10,25,25,10,5,5, 0,0,0,20,20,0,0,0, 5,-5,-10,0,0,-10,-5,5,
@@ -296,7 +300,7 @@ const PST = {
 };
 
 function evaluate(g){
-  const board = g.board(); // [0] = rank 8
+  const board = g.board();
   let score = 0;
   for(let r = 0; r < 8; r++){
     for(let f = 0; f < 8; f++){
@@ -315,13 +319,9 @@ function search(g, d, alpha, beta){
   if(d === 0) return evaluate(g);
   const moves = g.moves({ verbose: true });
   if(!moves.length){
-    if(g.in_checkmate()){
-      // тот, чей ход — получил мат
-      return g.turn() === 'w' ? -100000 + (10 - d) : 100000 - (10 - d);
-    }
-    return 0; // пат
+    if(g.in_checkmate()) return g.turn() === 'w' ? -100000 + (10 - d) : 100000 - (10 - d);
+    return 0;
   }
-  // простая упорядоченность: сначала взятия
   moves.sort((a,b) => (b.captured ? VAL[b.captured] : 0) - (a.captured ? VAL[a.captured] : 0));
 
   const white = g.turn() === 'w';
@@ -364,10 +364,24 @@ function findBestMove(g, d){
   return best;
 }
 
-function engineMove(){
+function stopEngineTimer(){
+  if(engineTimer){ clearTimeout(engineTimer); engineTimer = null; }
+  thinking = false;
+}
+
+function maybeEngineMove(){
+  if(game.game_over()){ thinking = false; updateStatus(); return; }
+  // в обычном режиме — ходим только если не ход игрока
+  if(!selfPlay && game.turn() === playerColor){ thinking = false; updateStatus(); return; }
+
   thinking = true;
   updateStatus();
-  setTimeout(() => {
+
+  const delay = selfPlay ? 150 : 40;
+  engineTimer = setTimeout(() => {
+    engineTimer = null;
+    if(game.game_over()){ thinking = false; updateStatus(); return; }
+
     const move = findBestMove(game, depth);
     if(move){
       const mv = game.move({ from: move.from, to: move.to, promotion: move.promotion || 'q' });
@@ -376,38 +390,53 @@ function engineMove(){
     thinking = false;
     render();
     updateStatus();
-  }, 40);
+
+    if(selfPlay && !game.game_over()){
+      engineTimer = setTimeout(maybeEngineMove, 150);
+    }
+  }, delay);
 }
 
 /* ================= управление ================= */
 function newGame(){
+  stopEngineTimer();
   game = new Chess();
   selected = null; legalTargets.clear();
   lastMove = null; thinking = false;
-  flipped = playerColor === 'b';
+  flipped = selfPlay ? false : (playerColor === 'b');
   render();
   updateStatus();
-  if(playerColor === 'b') engineMove();
+
+  // если должен ходить движок — стартуем
+  if(selfPlay) maybeEngineMove();
+  else if(playerColor === 'b') maybeEngineMove();
 }
 
 document.getElementById('newBtn').addEventListener('click', newGame);
+
 document.getElementById('undoBtn').addEventListener('click', () => {
-  if(thinking) return;
-  // отменяем два полухода, если ходил движок
+  if(thinking) stopEngineTimer();
+  if(!game.history().length) return;
   game.undo();
-  if(game.turn() !== playerColor && game.history().length) game.undo();
+  // в обычной игре, если после отката ход движка — откатываем ещё раз
+  if(!selfPlay && game.turn() !== playerColor && game.history().length) game.undo();
   selected = null; legalTargets.clear();
   const h = game.history({ verbose: true });
   lastMove = h.length ? { from: h[h.length-1].from, to: h[h.length-1].to } : null;
   render(); updateStatus();
 });
+
 document.getElementById('flipBtn').addEventListener('click', () => {
   flipped = !flipped; render();
 });
+
 document.getElementById('sideSel').addEventListener('change', e => {
-  playerColor = e.target.value;
+  const v = e.target.value;
+  if(v === 'self'){ selfPlay = true; playerColor = 'w'; }
+  else { selfPlay = false; playerColor = v; }
   newGame();
 });
+
 document.getElementById('diffSel').addEventListener('change', e => {
   depth = parseInt(e.target.value, 10);
 });
